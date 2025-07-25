@@ -388,7 +388,7 @@ export const DetectionSection = () => {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl border border-gray-200 p-6">
+        <div className="rounded-xl border border-gray-200 p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Controles</h3>
           
           <div className="space-y-4">
@@ -442,7 +442,7 @@ export const DetectionSection = () => {
           </div>
         </div>
         
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 p-6">
+        <div className="lg:col-span-2 rounded-xl border border-gray-200 p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-semibold text-gray-900">Imagen y Resultados</h3>
             <div className="flex gap-2">

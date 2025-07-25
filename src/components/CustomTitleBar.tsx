@@ -18,7 +18,7 @@ export const CustomTitleBar = () => {
   
 
   return (
-    <div className="absolute w-full text-gray-500 border-b border-gray-200 h-8 flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' } as CSSProperties}>
+    <div className="absolute w-full overflow-hidden text-gray-500 border-b border-gray-200 h-8 flex items-center justify-between px-4 select-none" style={{ WebkitAppRegion: 'drag' } as CSSProperties}>
       <div className="flex items-center gap-3">
         <div className="w-5 h-5 bg-blue-600 rounded flex items-center justify-center">
           <Zap className="w-3 h-3 text-white" />

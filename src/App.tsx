@@ -28,9 +28,9 @@ function App() {
   return (
     <>
     <CustomTitleBar />
-    <div className="min-h-dvh bg-gray-50 flex w-full pt-8">
+    <div className="min-h-dvh bg-gray-50/95 flex w-full pt-8 overflow-hidden">
       <Aside activeSection={activeSection} setActiveSection={setActiveSection} />
-      <main className="p-8 flex-1 mx-auto">
+      <main className="p-8 flex-1 mx-auto overflow-auto">
         {renderSection()}
       </main>
     </div>

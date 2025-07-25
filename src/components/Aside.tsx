@@ -14,7 +14,7 @@ export const Aside = ({ activeSection, setActiveSection }: AsideProps) => {
   ];
 
   return (
-    <aside className="bg-white border-r border-gray-200 flex flex-col min-w-xs">
+    <aside className="border-r border-gray-200 flex flex-col min-w-xs">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
