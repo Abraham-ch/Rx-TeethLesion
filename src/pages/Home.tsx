@@ -1,25 +1,13 @@
 import { Upload, Brain, Download } from 'lucide-react';
+import { MainCard } from '../components/ui/MainCard';
+import { NavigationFunction } from '../types/navigate';
 
-type CardProps = {
-  title: string;
-  meta: string;
-  svg?: React.ReactNode;  
+type Props = {
+  onNavigate?: NavigationFunction;
 }
 
-export const MainCard = ( props : CardProps ) => {
-  const { title, meta, svg } = props;
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-        {svg}
-      </div>
-      <h3 className="font-semibold text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-600">{meta}</p>
-    </div>
-  )
-}
-
-export const HomeSection = () => {
+export const HomeSection = ( props : Props ) => {
+  const { onNavigate } = props;
   return (
     <div className="w-full">
       <div className="text-center mb-8">
@@ -27,33 +15,31 @@ export const HomeSection = () => {
         <p className="text-lg text-gray-600">Carga una imagen y detecta objetos usando tu modelo entrenado</p>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-          <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Upload className="w-6 h-6 text-blue-600" />
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-2">Carga tu Imagen</h3>
-          <p className="text-sm text-gray-600">Sube imágenes en formato JPG, PNG o WEBP</p>
-        </div>
-        
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Brain className="w-6 h-6 text-green-600" />
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-2">Detección IA</h3>
-          <p className="text-sm text-gray-600">Segmentación con YOLOv11 en tiempo real</p>
-        </div>
-        
-        <div className="bg-white rounded-xl border border-gray-200 p-6 text-center">
-          <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mx-auto mb-4">
-            <Download className="w-6 h-6 text-purple-600" />
-          </div>
-          <h3 className="font-semibold text-gray-900 mb-2">Exporta Resultados</h3>
-          <p className="text-sm text-gray-600">Descarga imágenes con segmentación aplicada</p>
-        </div>
-      </div>
+      <section className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <MainCard 
+          title="Carga tu Imagen" 
+          meta="Sube imágenes en formato JPG, PNG o WEBP" 
+          className='bg-blue-100'
+          svg={<Upload className="w-6 h-6 text-blue-600" />} 
+          onClick={() => onNavigate && onNavigate('detection')}
+        />
+        <MainCard 
+          title="Detección IA" 
+          meta="Segmentación con YOLOv11 en tiempo real" 
+          className='bg-green-100'
+          svg={<Brain className="w-6 h-6 text-green-600" />}
+          onClick={() => onNavigate && onNavigate('settings')}
+        />
+        <MainCard 
+          title="Exporta Resultados" 
+          meta="Descarga imágenes con segmentación aplicada" 
+          className='bg-purple-100'
+          svg={<Download className="w-6 h-6 text-purple-600" />}
+          onClick={() => onNavigate && onNavigate('results')}
+        />
+      </section>
       
-      <div className="bg-white rounded-xl border border-gray-200 p-6">
+      <section className="bg-white rounded-xl border border-gray-200 p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Estadísticas de Uso</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="text-center">
@@ -73,7 +59,7 @@ export const HomeSection = () => {
             <div className="text-sm text-gray-600">Clases Detectadas</div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   );
 };

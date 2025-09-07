@@ -1,4 +1,5 @@
 import { Home, Brain, Activity, Settings, Zap } from 'lucide-react';
+import { AsideItem } from './ui/AsideItem';
 
 interface AsideProps {
   activeSection: string;
@@ -32,19 +33,13 @@ export const Aside = ({ activeSection, setActiveSection }: AsideProps) => {
           {menuItems.map((item) => {
             const Icon = item.icon;
             return (
-              <li key={item.id}>
-                <button
-                  onClick={() => setActiveSection(item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                    activeSection === item.id
-                      ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                >
-                  <Icon className="w-5 h-5" />
-                  {item.label}
-                </button>
-              </li>
+              <AsideItem
+                key={item.id}
+                onClick={() => setActiveSection(item.id)}
+                label={item.label}
+                svg={<Icon className="w-5 h-5" />}
+                isActive={activeSection === item.id}
+              />
             );
           })}
         </ul>
