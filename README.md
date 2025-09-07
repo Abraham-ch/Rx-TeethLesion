@@ -1,5 +1,5 @@
 # React + TypeScript + Vite
-# Rx-TeethLession 🦷
+# Rx-TeethLesion 🦷
 
 A dental X-ray lesion detection application using ONNX models and web technologies.
 
@@ -63,3 +63,4 @@ This project uses a YOLOv11 model trained with:
 Thanks to [Roboflow arshs-workspace-radio dataset](https://universe.roboflow.com/arshs-workspace-radio/vzrad2) for the dental X-ray images and labels.
 
 ---
+
