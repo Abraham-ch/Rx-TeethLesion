@@ -26,7 +26,7 @@ function App() {
   };
 
   return (
-    <>
+    <div className='flex flex-col h-dvh'>
     <CustomTitleBar />
     <div className="min-h-dvh bg-gray-50/95 flex w-full pt-8 overflow-hidden">
       <Aside activeSection={activeSection} setActiveSection={setActiveSection} />
@@ -34,7 +34,7 @@ function App() {
         {renderSection()}
       </main>
     </div>
-    </>
+    </div>
   );
 
 }
