@@ -6,14 +6,19 @@ import { ResultsSection } from './pages/ResultsSection'
 import { SettingsSection } from './pages/Settings'
 import { useState } from 'react'
 import { CustomTitleBar } from './components/CustomTitleBar'
+import { NavigationFunction } from './types/navigate'
 
 function App() {
   const [activeSection, setActiveSection] = useState('home');
 
+  const handleNavigation: NavigationFunction = (section: string) => {
+    setActiveSection(section);
+  };
+
   const renderSection = () => {
     switch (activeSection) {
       case 'home':
-        return <HomeSection />;
+        return <HomeSection onNavigate={handleNavigation} />;
       case 'detection':
         return <DetectionSection />;
       case 'results':
