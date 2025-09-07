@@ -1,226 +1,202 @@
-// labels.ts - Definición de clases dentales
-export const labels = [
-  "Caries",
-  "Periapical Lesion", 
-  "Impacted Tooth"
-];
+import { classColors, Detection, labels, ProcessResultsProps } from '../../types/results';
 
-export interface Detection {
-  bbox: [number, number, number, number]; // [x, y, width, height]
-  confidence: number;
-  class: number;
-  className: string;
-}
-
-// Colores para cada clase (mismo orden que labels)
-export const classColors = [
-  '#ef4444', // Rojo para Caries
-  '#f97316', // Naranja para Periapical Lesion  
-  '#8b5cf6', // Púrpura para Impacted Tooth
-];
-
-/**
- * Aplica Non-Maximum Suppression (NMS) para eliminar cajas duplicadas
- */
-function applyNMS(detections: Detection[], iouThreshold: number = 0.45): Detection[] {
-  // Ordenar por confianza (mayor a menor)
-  const sortedDetections = detections.sort((a, b) => b.confidence - a.confidence);
-  const selected: Detection[] = [];
-
-  while (sortedDetections.length > 0) {
-    const current = sortedDetections.shift()!;
-    selected.push(current);
-
-    // Remover detecciones que se superponen demasiado
-    for (let i = sortedDetections.length - 1; i >= 0; i--) {
-      const iou = calculateIoU(current.bbox, sortedDetections[i].bbox);
-      if (iou > iouThreshold) {
-        sortedDetections.splice(i, 1);
-      }
-    }
-  }
-
-  return selected;
-}
-
-/**
- * Calcula Intersection over Union (IoU) entre dos bounding boxes
- */
-function calculateIoU(box1: [number, number, number, number], box2: [number, number, number, number]): number {
-  const [x1_1, y1_1, w1, h1] = box1;
-  const [x1_2, y1_2, w2, h2] = box2;
-  
-  const x2_1 = x1_1 + w1;
-  const y2_1 = y1_1 + h1;
-  const x2_2 = x1_2 + w2;
-  const y2_2 = y1_2 + h2;
-
-  // Área de intersección
-  const intersectX1 = Math.max(x1_1, x1_2);
-  const intersectY1 = Math.max(y1_1, y1_2);
-  const intersectX2 = Math.min(x2_1, x2_2);
-  const intersectY2 = Math.min(y2_1, y2_2);
-
-  if (intersectX2 <= intersectX1 || intersectY2 <= intersectY1) {
-    return 0; // No hay intersección
-  }
-
-  const intersectArea = (intersectX2 - intersectX1) * (intersectY2 - intersectY1);
-  const box1Area = w1 * h1;
-  const box2Area = w2 * h2;
-  const unionArea = box1Area + box2Area - intersectArea;
-
-  return unionArea > 0 ? intersectArea / unionArea : 0;
-}
-
-/**
- * Procesa los resultados del modelo YOLOv11
- * Formato esperado: [batch, 4 + num_classes, num_detections] = [1, 7, 8400]
- * Donde: [x_center, y_center, width, height, conf_class1, conf_class2, conf_class3]
- */
-export function processYOLOResults(
-  output: Float32Array,
-  confidenceThreshold: number = 0.25,
-  iouThreshold: number = 0.45,
-  inputWidth: number = 640,
-  inputHeight: number = 640
-): Detection[] {
-  console.log('🔧 Procesando resultados YOLO...');
-  console.log('📊 Tamaño del output:', output.length);
-  
-  const numClasses = labels.length; // 3 clases
-  const numDetections = 8400; // Típico para YOLOv11
-  const outputWidth = 4 + numClasses; // 7 (4 coords + 3 clases)
-  
-  console.log(`📈 Configuración: ${numClasses} clases, ${numDetections} detecciones, ${outputWidth} valores por detección`);
-  
+// Función mejorada para procesar resultados YOLO
+export const processYOLOResults = ( props : ProcessResultsProps ): Detection[] => {
+  const { output, modelWidth, modelHeight, imageWidth, imageHeight } = props;
   const detections: Detection[] = [];
-
-  // Iterar sobre cada detección
-  for (let i = 0; i < numDetections; i++) {
-    const baseIndex = i * outputWidth;
+  const numClasses = labels.length; // 3 clases
+  
+  console.log('📊 Procesando resultados YOLO...');
+  console.log(`Output length: ${output.length}`);
+  console.log(`Primeros 20 valores:`, Array.from(output).slice(0, 20));
+  
+  // Analizar el formato del output
+  const totalElements = output.length;
+  console.log(`Total elementos: ${totalElements}`);
+  
+  // YOLOv11 típicamente devuelve formato [1, 7, 8400] o [1, 8400, 7]
+  // Donde 7 = 4 coordenadas + 3 clases
+  const expectedElements = 4 + numClasses; // 7 elementos por detección
+  
+  let numDetections: number;
+  let isTransposed = false;
+  
+  // Detectar formato automáticamente
+  if (totalElements === 58800) { // 8400 * 7
+    // Comprobar si es formato [8400, 7] o [7, 8400]
+    // Si los primeros valores son muy altos, probablemente sea [7, 8400] (transpuesto)
+    const sampleValues = Array.from(output).slice(0, 10);
+    const avgValue = sampleValues.reduce((a, b) => a + b, 0) / sampleValues.length;
     
-    // Verificar que no nos salgamos del array
-    if (baseIndex + outputWidth > output.length) {
-      console.warn('⚠️ Índice fuera de rango, deteniendo procesamiento');
-      break;
+    if (avgValue > 10) {
+      // Probablemente formato transpuesto [7, 8400]
+      numDetections = 8400;
+      isTransposed = true;
+      console.log('🔄 Detectado formato transpuesto [7, 8400]');
+    } else {
+      // Formato normal [8400, 7]
+      numDetections = 8400;
+      console.log('✅ Detectado formato normal [8400, 7]');
     }
+  } else {
+    console.error('❌ Formato de output no reconocido');
+    return [];
+  }
 
-    // Extraer coordenadas del bounding box (formato centro)
-    const centerX = output[baseIndex];
-    const centerY = output[baseIndex + 1];
-    const width = output[baseIndex + 2];
-    const height = output[baseIndex + 3];
+  // Calcular ratios de escala para convertir coordenadas del modelo a la imagen original
+  const scaleX = imageWidth / modelWidth;
+  const scaleY = imageHeight / modelHeight;
+  
+  console.log(`Escalas: X=${scaleX}, Y=${scaleY}`);
 
-    // Extraer confianzas de cada clase
-    const classConfidences = [];
-    for (let j = 0; j < numClasses; j++) {
-      classConfidences.push(output[baseIndex + 4 + j]);
+  for (let i = 0; i < numDetections; i++) {
+    let centerX, centerY, width, height;
+    let classScores: number[] = [];
+    
+    if (isTransposed) {
+      // Formato [7, 8400]: cada fila contiene todos los valores para esa característica
+      centerX = output[i];                    // fila 0
+      centerY = output[numDetections + i];    // fila 1  
+      width = output[2 * numDetections + i];  // fila 2
+      height = output[3 * numDetections + i]; // fila 3
+      
+      // Clases en las filas 4, 5, 6
+      for (let c = 0; c < numClasses; c++) {
+        classScores.push(output[(4 + c) * numDetections + i]);
+      }
+    } else {
+      // Formato [8400, 7]: cada fila contiene una detección completa
+      const startIdx = i * expectedElements;
+      centerX = output[startIdx];
+      centerY = output[startIdx + 1]; 
+      width = output[startIdx + 2];
+      height = output[startIdx + 3];
+      
+      classScores = Array.from(output.slice(startIdx + 4, startIdx + 4 + numClasses));
     }
-
-    // Encontrar la clase con mayor confianza
-    const maxConfidence = Math.max(...classConfidences);
-    const classId = classConfidences.indexOf(maxConfidence);
-
-    // Filtrar por umbral de confianza
-    if (maxConfidence < confidenceThreshold) {
+    
+    // Debug para las primeras detecciones
+    if (i < 5) {
+      console.log(`Detección ${i}:`, {
+        centerX, centerY, width, height,
+        classScores: classScores.map(s => s.toFixed(3))
+      });
+    }
+    
+    // Encontrar la clase con mayor puntuación
+    let maxScore = Math.max(...classScores);
+    let maxClassIdx = classScores.indexOf(maxScore);
+    
+    // Aplicar sigmoid si las puntuaciones están en logits (valores muy altos/bajos)
+    if (maxScore > 10 || maxScore < -10) {
+      classScores = classScores.map(score => 1 / (1 + Math.exp(-score)));
+      maxScore = Math.max(...classScores);
+      maxClassIdx = classScores.indexOf(maxScore);
+    }
+    
+    // Filtrar detecciones con baja confianza
+    const confidenceThreshold = 0.5; // Aumentar umbral para reducir falsos positivos
+    if (maxScore < confidenceThreshold) {
       continue;
     }
-
-    // Convertir de formato centro a esquina superior izquierda
-    const x = centerX - width / 2;
-    const y = centerY - height / 2;
-
-    // Validar que las coordenadas estén dentro de los límites
-    if (x < 0 || y < 0 || x + width > inputWidth || y + height > inputHeight) {
+    
+    // Validar coordenadas (deben estar en rango razonable)
+    if (centerX < 0 || centerX > modelWidth || 
+        centerY < 0 || centerY > modelHeight ||
+        width <= 0 || width > modelWidth ||
+        height <= 0 || height > modelHeight) {
       continue;
     }
-
-    // Validar que el tamaño sea razonable
-    if (width <= 0 || height <= 0 || width > inputWidth || height > inputHeight) {
+    
+    // Convertir de center_x, center_y, width, height a x, y, width, height (esquina superior izquierda)
+    let x = centerX - width / 2;
+    let y = centerY - height / 2;
+    
+    // Asegurar que las coordenadas estén dentro de los límites
+    x = Math.max(0, Math.min(x, modelWidth - width));
+    y = Math.max(0, Math.min(y, modelHeight - height));
+    width = Math.min(width, modelWidth - x);
+    height = Math.min(height, modelHeight - y);
+    
+    // Escalar coordenadas a las dimensiones originales de la imagen
+    const scaledBox: [number, number, number, number] = [
+      Math.floor(x * scaleX),
+      Math.floor(y * scaleY), 
+      Math.floor(width * scaleX),
+      Math.floor(height * scaleY)
+    ];
+    
+    // Validar que el bbox escalado sea razonable
+    if (scaledBox[2] < 5 || scaledBox[3] < 5 || 
+        scaledBox[2] > imageWidth || scaledBox[3] > imageHeight) {
       continue;
     }
 
     detections.push({
-      bbox: [x, y, width, height],
-      confidence: maxConfidence,
-      class: classId,
-      className: labels[classId] || `Clase ${classId}`
+      className: labels[maxClassIdx],
+      class: maxClassIdx,
+      confidence: maxScore,
+      bbox: scaledBox,
+      color: classColors[maxClassIdx] || '#6b7280'
     });
   }
 
-  console.log(`✅ Detecciones antes de NMS: ${detections.length}`);
+  console.log(`✅ Detecciones válidas: ${detections.length}`);
+  
+  // Mostrar estadísticas de las detecciones
+  const stats = detections.reduce((acc, det) => {
+    acc[det.className] = (acc[det.className] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  console.log('📈 Estadísticas por clase:', stats);
+  
+  return detections;
+};
 
-  // Aplicar Non-Maximum Suppression
-  const finalDetections = applyNMS(detections, iouThreshold);
-  
-  console.log(`🎯 Detecciones finales después de NMS: ${finalDetections.length}`);
-  
-  return finalDetections;
-}
+// Aplicar Non-Maximum Suppression (NMS) simple
+export const applyNMS = (detections: Detection[], iouThreshold: number = 0.45): Detection[] => {
+  if (detections.length === 0) return detections;
 
-/**
- * Escala las bounding boxes de las dimensiones del modelo a las dimensiones originales de la imagen
- */
-export function scaleBoundingBoxes(
-  detections: Detection[],
-  originalWidth: number,
-  originalHeight: number,
-  modelWidth: number = 640,
-  modelHeight: number = 640
-): Detection[] {
-  const scaleX = originalWidth / modelWidth;
-  const scaleY = originalHeight / modelHeight;
+  // Ordenar por confianza (mayor a menor)
+  const sortedDetections = [...detections].sort((a, b) => b.confidence - a.confidence);
+  const keep: Detection[] = [];
 
-  return detections.map(detection => ({
-    ...detection,
-    bbox: [
-      detection.bbox[0] * scaleX,
-      detection.bbox[1] * scaleY,
-      detection.bbox[2] * scaleX,
-      detection.bbox[3] * scaleY
-    ] as [number, number, number, number]
-  }));
-}
+  // Función para calcular IoU
+  const calculateIoU = (box1: number[], box2: number[]): number => {
+    const [x1, y1, w1, h1] = box1;
+    const [x2, y2, w2, h2] = box2;
 
-/**
- * Función de debug para analizar la salida del modelo
- */
-export function debugModelOutput(output: Float32Array, sampleSize: number = 50): void {
-  console.log('🔍 DEBUG: Analizando salida del modelo...');
-  console.log('📏 Tamaño total del output:', output.length);
-  
-  // Mostrar una muestra de los valores
-  console.log('📊 Primeros valores:', Array.from(output.slice(0, sampleSize)));
-  
-  // Analizar distribución de valores
-  const nonZeroValues = Array.from(output).filter(v => Math.abs(v) > 0.001);
-  console.log('📈 Valores no-cero:', nonZeroValues.length);
-  console.log('📊 Rango de valores:', {
-    min: Math.min(...Array.from(output)),
-    max: Math.max(...Array.from(output)),
-    mean: Array.from(output).reduce((a, b) => a + b, 0) / output.length
-  });
-  
-  // Verificar si es el formato esperado para YOLOv11
-  const expectedLength = 8400 * 7; // 8400 detecciones × 7 valores cada una
-  if (output.length === expectedLength) {
-    console.log('✅ Formato compatible con YOLOv11 (8400 × 7)');
-  } else {
-    console.log(`⚠️ Formato inesperado. Esperado: ${expectedLength}, Actual: ${output.length}`);
-    
-    // Intentar detectar el formato
-    const possibleFormats = [
-      { detections: 8400, values: 7, name: 'YOLOv11 standard' },
-      { detections: 8400, values: 8, name: 'YOLOv11 with objectness' },
-      { detections: 25200, values: 7, name: 'YOLOv8 format' },
-      { detections: 25200, values: 8, name: 'YOLOv8 with objectness' },
-    ];
-    
-    for (const format of possibleFormats) {
-      if (output.length === format.detections * format.values) {
-        console.log(`🎯 Posible formato: ${format.name} (${format.detections} × ${format.values})`);
+    const intersectionX = Math.max(x1, x2);
+    const intersectionY = Math.max(y1, y2);
+    const intersectionW = Math.min(x1 + w1, x2 + w2) - intersectionX;
+    const intersectionH = Math.min(y1 + h1, y2 + h2) - intersectionY;
+
+    if (intersectionW <= 0 || intersectionH <= 0) return 0;
+
+    const intersectionArea = intersectionW * intersectionH;
+    const box1Area = w1 * h1;
+    const box2Area = w2 * h2;
+    const unionArea = box1Area + box2Area - intersectionArea;
+
+    return intersectionArea / unionArea;
+  };
+
+  for (const detection of sortedDetections) {
+    let shouldKeep = true;
+
+    for (const keptDetection of keep) {
+      const iou = calculateIoU(detection.bbox, keptDetection.bbox);
+      if (iou > iouThreshold) {
+        shouldKeep = false;
+        break;
       }
     }
+
+    if (shouldKeep) {
+      keep.push(detection);
+    }
   }
-}
+
+  return keep;
+};
